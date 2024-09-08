@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "275871833090",
+    "project_id": "move-it-b87c1",
+    "storage_bucket": "move-it-b87c1.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:275871833090:android:8ab445d4b486248b2d9b1b",
+        "android_client_info": {
+          "package_name": "com.moveit.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAwOxMMBeIznUxIxT943zqSb4TGMg_Btp8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
