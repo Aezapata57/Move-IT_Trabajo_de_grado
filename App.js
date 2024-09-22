@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useFonts, LexendGiga_400Regular } from '@expo-google-fonts/lexend-giga';
+import { Text, View, Image } from 'react-native'; // Añadido para el logo
 
 // Importar Firebase y autenticación
 import appFirebase from './firebase';
@@ -24,11 +26,16 @@ const App = () => {
   const [usuario, setUsuario] = useState(null);
   const [userType, setUserType] = useState(null);
 
+  // Cargar las fuentes
+  let [fontsLoaded] = useFonts({
+    LexendGiga_400Regular,
+  });
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (usuarioFirebase) => {
       if (usuarioFirebase) {
         setUsuario(usuarioFirebase);
-        
+
         // Obtener el userType desde Firestore
         const userDoc = await getDoc(doc(db, 'users', usuarioFirebase.uid));
         if (userDoc.exists()) {
@@ -43,9 +50,32 @@ const App = () => {
     return () => unsubscribe();
   }, []);
 
+  // Retornar null si las fuentes aún no están cargadas
+  if (!fontsLoaded) {
+    return null;  // Retorna null hasta que las fuentes se carguen
+  }
+
   return (
     <NavigationContainer>
-      <Stack.Navigator>
+      <Stack.Navigator
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: '#DBC8FF',
+          },
+          headerTintColor: '#fff',
+          headerTitle: () => (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ fontFamily: 'LexendGiga_400Regular', fontSize: 20, color: '#000000', marginRight: 10 }}>
+                MOVE-IT
+              </Text>
+              <Image
+                source={require('./assets/Logo.png')} // Ruta al archivo de logo
+                style={{ width: 70, height: 40 }}
+              />
+            </View>
+          ),
+          headerTitleAlign: 'center', // Centrar el título y el logo
+        }}>
         {usuario ? (
           <>
             {userType === 'conductor' ? (
