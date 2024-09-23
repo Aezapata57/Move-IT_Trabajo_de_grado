@@ -1,33 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Button, StyleSheet } from 'react-native';
-import { auth, db } from '../firebase'; // Asegúrate de tener configurado Firebase Firestore
+import { View, Text, TouchableOpacity, StyleSheet, Modal, Animated, TouchableWithoutFeedback } from 'react-native';
+import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { doc, getDoc, updateDoc } from 'firebase/firestore'; // Para leer y actualizar el documento en Firestore
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { Ionicons } from '@expo/vector-icons';
+import { useFonts, LexendGiga_400Regular } from '@expo-google-fonts/lexend-giga';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function CustomerHome({ navigation }) {
-  const [hasActiveRequest, setHasActiveRequest] = useState(false); // Estado para controlar si ya hay una solicitud
+  const [hasActiveRequest, setHasActiveRequest] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalAnimation] = useState(new Animated.Value(-300));
 
-  // Función para obtener el estado de hasActiveRequest del usuario en Firestore
+  let [fontsLoaded] = useFonts({
+    LexendGiga_400Regular,
+  });
+
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        // Obtener la referencia del documento del usuario actual
         const userDocRef = doc(db, 'users', auth.currentUser.uid);
-        
-        // Obtener el documento del usuario
         const userDoc = await getDoc(userDocRef);
         
         if (userDoc.exists()) {
-          // Actualizar el estado de hasActiveRequest según el valor en Firestore
           const userData = userDoc.data();
-          setHasActiveRequest(userData.hasActiveRequest || false); // Si no existe, se asume que es false
+          setHasActiveRequest(userData.hasActiveRequest || false);
         }
       } catch (error) {
         console.log('Error al obtener los datos del usuario:', error);
       }
     };
 
-    fetchUserData(); // Llamar a la función al montar el componente
+    fetchUserData();
   }, []);
 
   const handleLogout = () => {
@@ -43,43 +47,147 @@ export default function CustomerHome({ navigation }) {
 
   const handleRequestMove = async () => {
     try {
-      // Obtener la referencia del documento del usuario actual en Firestore
       const userDocRef = doc(db, 'users', auth.currentUser.uid);
 
-      // Actualizar el campo 'hasActiveRequest' a true si no lo tiene ya
       if (!hasActiveRequest) {
         await updateDoc(userDocRef, {
           hasActiveRequest: true,
         });
-        setHasActiveRequest(true); // Actualizar el estado local
+        setHasActiveRequest(true);
         console.log('Solicitud de mudanza iniciada');
       }
 
-      // Navegar a la pantalla RequestMove
       navigation.navigate('RequestMove');
     } catch (error) {
       console.log('Error al actualizar la solicitud de mudanza:', error);
     }
   };
 
+  const openModal = () => {
+    setModalVisible(true);
+    Animated.spring(modalAnimation, {
+      toValue: 0,
+      useNativeDriver: true,
+      speed: 5,
+    }).start();
+  };
+
+  const closeModal = () => {
+    Animated.spring(modalAnimation, {
+      toValue: -300,
+      useNativeDriver: true,
+      speed: 300,
+    }).start(() => setModalVisible(false));
+  };
+
   return (
     <View style={styles.container}>
+      <TouchableOpacity style={styles.menuButton} onPress={openModal}>
+        <Ionicons name="menu" size={30} color="#000" />
+      </TouchableOpacity>
+
       <Text style={styles.title}>Bienvenido, Cliente!</Text>
-      <View style={[styles.buttonContainer, hasActiveRequest && styles.activeRequestButton]}>
-        <Button
-          title={hasActiveRequest ? "Continuar solicitud" : "Solicitar mudanza"} // Cambiar texto dinámicamente
-          onPress={handleRequestMove}
-          color={hasActiveRequest ? 'green' : 'blue'} // Cambiar el color del botón
-        />
-      </View>
-      <Button
-        title="Ver historial de solicitudes"
+      <TouchableOpacity 
+        style={[styles.button, hasActiveRequest ? styles.activeButton : styles.requestButton]}
+        onPress={handleRequestMove}
+      >
+        <Text style={styles.buttonText}>
+          {hasActiveRequest ? "Continuar solicitud" : "Solicitar mudanza"}
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity 
+        style={styles.button}
         onPress={() => navigation.navigate('RequestHistory')}
-      />
-      <Button
-        title="Cerrar sesión"
-        onPress={handleLogout}
-      />
+      >
+        <Text style={styles.buttonText}>Ver historial de solicitudes</Text>
+      </TouchableOpacity>
+
+      {/* Modal para opciones adicionales */}
+      <Modal
+        transparent={true}
+        animationType="none"
+        visible={modalVisible}
+        onRequestClose={closeModal}
+      >
+        <TouchableWithoutFeedback onPress={closeModal}>
+          <View style={styles.modalBackground}>
+            <Animated.View style={[styles.modalContainer, { transform: [{ translateX: modalAnimation }] }]}>
+              <View style={styles.modalOptionsContainer}>
+                <LinearGradient
+                  colors={['#DBC8FF', '#A76DFF']} // Colores del gradiente para el botón
+                  start={{ x: 0, y: 0 }} // Comienza en la esquina izquierda
+                  end={{ x: 1.8, y: 0 }} // Termina en la esquina derecha
+                  style={styles.modalOption}
+                >
+                  <TouchableOpacity style={styles.modalOptionButton} onPress={() => navigation.navigate('Profile')}>
+                    <Text style={styles.modalOptionText}>Ver Perfil</Text>
+                  </TouchableOpacity>
+                </LinearGradient>
+                <LinearGradient
+                  colors={['#DBC8FF', '#A76DFF']} // Colores del gradiente para el botón
+                  start={{ x: 0, y: 0 }} // Comienza en la esquina izquierda
+                  end={{ x: 1.8, y: 0 }} // Termina en la esquina derecha
+                  style={styles.modalOption}
+                >
+                  <TouchableOpacity style={styles.modalOptionButton} onPress={() => navigation.navigate('Help')}>
+                    <Text style={styles.modalOptionText}>Soporte</Text>
+                  </TouchableOpacity>
+                </LinearGradient>
+                <LinearGradient
+                  colors={['#DBC8FF', '#A76DFF']} // Colores del gradiente para el botón
+                  start={{ x: 0, y: 0 }} // Comienza en la esquina izquierda
+                  end={{ x: 1.8, y: 0 }} // Termina en la esquina derecha
+                  style={styles.modalOption}
+                >
+                  <TouchableOpacity style={styles.modalOptionButton} onPress={() => navigation.navigate('Settings')}>
+                    <Text style={styles.modalOptionText}>Configuración</Text>
+                  </TouchableOpacity>
+                </LinearGradient>
+                <LinearGradient
+                  colors={['#DBC8FF', '#A76DFF']} // Colores del gradiente para el botón
+                  start={{ x: 0, y: 0 }} // Comienza en la esquina izquierda
+                  end={{ x: 1.8, y: 0 }} // Termina en la esquina derecha
+                  style={styles.modalOption}
+                >
+                  <TouchableOpacity style={styles.modalOptionButton} onPress={() => navigation.navigate('Ratings')}>
+                    <Text style={styles.modalOptionText}>Calificaciones</Text>
+                  </TouchableOpacity>
+                </LinearGradient>
+                <LinearGradient
+                  colors={['#DBC8FF', '#A76DFF']} // Colores del gradiente para el botón
+                  start={{ x: 0, y: 0 }} // Comienza en la esquina izquierda
+                  end={{ x: 1.8, y: 0 }} // Termina en la esquina derecha
+                  style={styles.modalOption}
+                >
+                  <TouchableOpacity style={styles.modalOptionButton} onPress={() => navigation.navigate('PaymentHistory')}>
+                    <Text style={styles.modalOptionText}>Historial de Pagos</Text>
+                  </TouchableOpacity>
+                </LinearGradient>
+                <LinearGradient
+                  colors={['#DBC8FF', '#A76DFF']} // Colores del gradiente para el botón
+                  start={{ x: 0, y: 0 }} // Comienza en la esquina izquierda
+                  end={{ x: 1.8, y: 0 }} // Termina en la esquina derecha
+                  style={styles.modalOption}
+                >
+                  <TouchableOpacity style={styles.modalOptionButton} onPress={() => shareApp()}>
+                    <Text style={styles.modalOptionText}>Compartir App</Text>
+                  </TouchableOpacity>
+                </LinearGradient>
+                <LinearGradient
+                  colors={['#DBC8FF', '#A76DFF']} // Colores del gradiente para el botón
+                  start={{ x: 0, y: 0 }} // Comienza en la esquina izquierda
+                  end={{ x: 1.8, y: 0 }} // Termina en la esquina derecha
+                  style={styles.modalOption}
+                >
+                  <TouchableOpacity style={styles.modalOptionButton} onPress={handleLogout}>
+                    <Text style={styles.modalOptionText}>Cerrar sesión</Text>
+                  </TouchableOpacity>
+                </LinearGradient>
+              </View>
+            </Animated.View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </View>
   );
 }
@@ -89,16 +197,79 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#f0f0f0',
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
+    marginBottom: 30,
+    fontFamily: 'LexendGiga_400Regular',
+    color: '#333',
+  },
+  button: {
+    backgroundColor: '#A76DFF',
+    padding: 15,
+    borderRadius: 10,
+    width: '80%',
+    alignItems: 'center',
     marginBottom: 20,
   },
-  buttonContainer: {
-    marginBottom: 20, // Agregar margen entre los botones
-    width: 200,
+  requestButton: {
+    backgroundColor: '#2196F3',
   },
-  activeRequestButton: {
-    backgroundColor: 'green', // O cualquier otro color si decides estilizar el View del botón
+  activeButton: {
+    backgroundColor: 'green',
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '500',
+    fontFamily: 'LexendGiga_400Regular',
+  },
+  menuButton: {
+    position: 'absolute',
+    top: 40,
+    left: 20,
+  },
+  modalBackground: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  modalContainer: {
+    flex: 1,
+    width: '50%',
+    backgroundColor: '#EFE7FF',
+    padding: 20,
+    elevation: 5,
+    position: 'relative', // Para posicionar la X
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    padding: 10,
+  },
+  modalOptionsContainer: {
+    flex: 1,
+    justifyContent: 'center', // Centrar verticalmente las opciones
+    alignItems: 'center',
+  },
+  modalOption: {
+    backgroundColor: '#DDCEFF',
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  modalOptionButton: {
+    padding: 15,
+    width: '100%',
+    alignItems: 'center',
+  },
+  modalOptionText: {
+    color: '#000',
+    fontSize: 12,
+    fontFamily: 'LexendGiga_400Regular',
   },
 });

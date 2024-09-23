@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TextInput, Button, Text, StyleSheet, TouchableOpacity  } from 'react-native';
+import { View, TextInput, Text, StyleSheet, TouchableOpacity  } from 'react-native';
 import { auth } from '../firebase';
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
@@ -73,11 +73,12 @@ export default function LoginScreen({ navigation }) {
             start={{ x: 0, y: 0 }} // Comienza en la esquina izquierda
             end={{ x: 1.5, y: 0 }} // Termina en la esquina derecha
             style={styles.loginButton}
-          >
+          > 
             <TouchableOpacity onPress={handleLogin} style={styles.buttonContent}>
               <Text style={styles.loginButtonText}>INICIAR SESIÓN</Text>
             </TouchableOpacity>
           </LinearGradient>
+          
           <View style={styles.switchContainer}>
             <Text style={styles.account}>¿No tienes una cuenta?</Text>
             <TouchableOpacity onPress={() => navigation.navigate('Register')}>
@@ -105,7 +106,7 @@ const styles = StyleSheet.create({
   innerContainer: {
     backgroundColor: '#EFE7FF', // Morado oscuro
     padding: 20,
-    width: '100%', // Ajusta el ancho según sea necesario
+    width: 320, // Ajusta el ancho según sea necesario
   },
   title: {
     fontSize: 24,
@@ -123,6 +124,7 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor:'#D9D9D9',
+    fontSize: 12,
     height: 40,
     marginBottom: 12,
     paddingHorizontal: 20,
@@ -136,9 +138,13 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     backgroundColor: '#DBC8FF', // Color del botón
-    padding: 10,
     alignItems: 'center', // Centra el texto del botón
     marginBottom: 12, // Espacio debajo del botón
+  },
+  buttonContent: {
+    padding: 10,
+    width: '100%',
+    alignItems: 'center',
   },
   loginButtonText: {
     color: '#000000', // Color del texto del botón
