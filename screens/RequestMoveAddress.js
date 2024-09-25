@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, TextInput, Button, StyleSheet, KeyboardAvoidingView, Platform, Text } from 'react-native';
+import { View, TextInput, Button, StyleSheet, KeyboardAvoidingView, TouchableOpacity, Platform, Text } from 'react-native';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import MapView, { Marker } from 'react-native-maps';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import * as Location from 'expo-location';
 import { db, auth } from '../firebase';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useFonts, LexendGiga_400Regular } from '@expo-google-fonts/lexend-giga';
 
-export default function RequestMoveAddress({ address, onAddressUpdate, onNext, onPrevious }) {
+export default function RequestMoveAddress({ address = {}, onAddressUpdate, onNext, onPrevious }) {
   const [pickupLocation, setPickupLocation] = useState(address.pickupLocation || null);
   const [dropoffLocation, setDropoffLocation] = useState(address.dropoffLocation || null);
   const [date, setDate] = useState(address.date || new Date());
@@ -21,6 +22,10 @@ export default function RequestMoveAddress({ address, onAddressUpdate, onNext, o
     longitude: -74.0817, // Bogotá longitude
     latitudeDelta: 0.0922,
     longitudeDelta: 0.0421,
+  });
+
+  let [fontsLoaded] = useFonts({
+    LexendGiga_400Regular,
   });
 
   useEffect(() => {
@@ -40,6 +45,49 @@ export default function RequestMoveAddress({ address, onAddressUpdate, onNext, o
   }, []);
 
   useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const userId = auth.currentUser.uid;
+        if (!userId) {
+          console.error('No authenticated user found');
+          return;
+        }
+  
+        const moveRef = doc(db, 'moves', userId);
+        const moveDoc = await getDoc(moveRef);
+  
+        if (moveDoc.exists()) {
+          const moveData = moveDoc.data();
+          const fetchedPickupLocation = moveData.pickupLocation || null;
+          const fetchedDropoffLocation = moveData.dropoffLocation || null;
+  
+          setPickupLocation(fetchedPickupLocation);
+          setDropoffLocation(fetchedDropoffLocation);
+          setDate(moveData.date ? new Date(moveData.date.seconds * 1000) : new Date());
+          setTime(moveData.time ? new Date(moveData.time.seconds * 1000) : new Date());
+  
+          // Actualiza el mapa si ambas ubicaciones están disponibles
+          if (fetchedPickupLocation && fetchedDropoffLocation) {
+            const fitBounds = {
+              latitude: (fetchedPickupLocation.coordinates.lat + fetchedDropoffLocation.coordinates.lat) / 2,
+              longitude: (fetchedPickupLocation.coordinates.lng + fetchedDropoffLocation.coordinates.lng) / 2,
+              latitudeDelta: Math.abs(fetchedPickupLocation.coordinates.lat - fetchedDropoffLocation.coordinates.lat) * 1.5,
+              longitudeDelta: Math.abs(fetchedPickupLocation.coordinates.lng - fetchedDropoffLocation.coordinates.lng) * 1.5,
+            };
+            setMapRegion(fitBounds);
+          }
+        } else {
+          console.log('No move data found for this user');
+        }
+      } catch (error) {
+        console.error('Error fetching data from Firestore:', error);
+      }
+    };
+  
+    fetchData();
+  }, []);  // Solo se ejecutará una vez cuando el componente se monte. 
+  
+  useEffect(() => {
     if (pickupLocation && dropoffLocation) {
       const fitBounds = {
         latitude: (pickupLocation.coordinates.lat + dropoffLocation.coordinates.lat) / 2,
@@ -50,6 +98,7 @@ export default function RequestMoveAddress({ address, onAddressUpdate, onNext, o
       setMapRegion(fitBounds);
     }
   }, [pickupLocation, dropoffLocation]);
+  
 
   const handleNext = async () => {
     try {
@@ -58,22 +107,22 @@ export default function RequestMoveAddress({ address, onAddressUpdate, onNext, o
         console.error('No authenticated user found');
         return;
       }
-
+  
       const moveRef = doc(db, 'moves', userId);
-
+  
       await setDoc(moveRef, {
         pickupLocation: pickupLocation ? {
-          address: pickupLocation.address,
-          coordinates: pickupLocation.coordinates
+          address: pickupLocation.address || '', // Maneja casos donde no hay dirección
+          coordinates: pickupLocation.coordinates || null
         } : null,
         dropoffLocation: dropoffLocation ? {
-          address: dropoffLocation.address,
-          coordinates: dropoffLocation.coordinates
+          address: dropoffLocation.address || '', // Maneja casos donde no hay dirección
+          coordinates: dropoffLocation.coordinates || null
         } : null,
         date: date,
         time: time,
       }, { merge: true });
-
+  
       onNext();
     } catch (error) {
       console.error('Error saving data to Firestore:', error);
@@ -122,14 +171,12 @@ export default function RequestMoveAddress({ address, onAddressUpdate, onNext, o
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
     >
+      <Text style={styles.headerText}>DIRECCIÓN Y HORA</Text>
       <KeyboardAwareScrollView
         contentContainerStyle={styles.scrollContainer}
         keyboardShouldPersistTaps='handled'
         extraScrollHeight={20}
       >
-        <View style={styles.header}>
-          <Text style={styles.headerText}>Nombre de la Página</Text>
-        </View>
 
         <View style={styles.innerContainer}>
           <GooglePlacesAutocomplete
@@ -184,30 +231,32 @@ export default function RequestMoveAddress({ address, onAddressUpdate, onNext, o
             enablePoweredByContainer={false}
           />
 
-          <View>
-            <Button title="Seleccionar fecha" onPress={() => setShowDatePicker(true)} />
-            {showDatePicker && (
-              <DateTimePicker
-                value={date}
-                mode="date"
-                display="default"
-                onChange={handleDateChange}
-              />
-            )}
-            <Text>Fecha seleccionada: {date.toLocaleDateString()}</Text>
-          </View>
+          <View style={styles.rowContainer}>
+            <View style={styles.column}>
+              <Button title="Seleccionar fecha" onPress={() => setShowDatePicker(true)} />
+              {showDatePicker && (
+                <DateTimePicker
+                  value={date}
+                  mode="date"
+                  display="default"
+                  onChange={handleDateChange}
+                />
+              )}
+              <Text>Fecha seleccionada: {date.toLocaleDateString()}</Text>
+            </View>
 
-          <View>
-            <Button title="Seleccionar hora" onPress={() => setShowTimePicker(true)} />
-            {showTimePicker && (
-              <DateTimePicker
-                value={time}
-                mode="time"
-                display="default"
-                onChange={handleTimeChange}
-              />
-            )}
-            <Text>Hora seleccionada: {time.toLocaleTimeString()}</Text>
+            <View style={styles.column}>
+              <Button title="Seleccionar hora" onPress={() => setShowTimePicker(true)} />
+              {showTimePicker && (
+                <DateTimePicker
+                  value={time}
+                  mode="time"
+                  display="default"
+                  onChange={handleTimeChange}
+                />
+              )}
+              <Text>Hora seleccionada: {time.toLocaleTimeString()}</Text>
+            </View>
           </View>
 
           <MapView
@@ -254,31 +303,43 @@ export default function RequestMoveAddress({ address, onAddressUpdate, onNext, o
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    padding: 16,
+    backgroundColor: '#F6F1FF',
   },
   scrollContainer: {
     flexGrow: 1,
     padding: 16,
-  },
-  header: {
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingTop: 40,
+    backgroundColor: '#EFE7FF',
   },
   headerText: {
     fontSize: 18,
-    fontWeight: 'bold',
+    marginBottom: 12,
+    textAlign: 'center',
+    fontFamily: 'LexendGiga_400Regular',
   },
   innerContainer: {
     flex: 1,
     justifyContent: 'space-between',
   },
   input: {
+    backgroundColor:'#D9D9D9',
+    fontSize: 12,
     height: 40,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    borderRadius: 4,
-    paddingHorizontal: 8,
+    marginBottom: 12,
+    paddingHorizontal: 20,
+    color: '#8E8E8E',
+    fontFamily: 'LexendGiga_400Regular',
+  },
+  rowContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',  // Para que se distribuyan con espacio entre las columnas
     marginBottom: 16,
   },
+  column: {
+    flex: 1,  // Ocupa la mitad del espacio disponible
+    paddingHorizontal: 8,  // Espaciado entre columnas
+  },  
   map: {
     height: 200,
     marginBottom: 16,

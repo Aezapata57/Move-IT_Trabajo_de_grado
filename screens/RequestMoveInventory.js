@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, Button, StyleSheet, FlatList, TextInput, TouchableOpacity } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
+import { View, Text, Button, StyleSheet, FlatList, TextInput, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { db, auth } from '../firebase';
 import { doc, setDoc } from 'firebase/firestore';
+import { useFonts, LexendGiga_400Regular } from '@expo-google-fonts/lexend-giga';
 
-// Lista de artículos con valores y tamaños asociados
 const itemsList = [
   { name: 'Aparador', value: 40, size: '90x40x180 cm' },
   { name: 'Armario', value: 80, size: '200x60x200 cm' },
-  { name: 'Caja de cartón', value: 2, size: '50x30x30 cm' },
+  { name: 'Caja de cartón', value: 30, size: '50x30x30 cm' },
   { name: 'Sofá', value: 70, size: '200x90x90 cm' },
   { name: 'Silla', value: 15, size: '45x45x90 cm' },
   { name: 'Mesa de comedor', value: 50, size: '180x90x75 cm' },
@@ -89,20 +88,44 @@ const itemsList = [
   { name: 'Pala de nieve', value: 15, size: '35x10x150 cm' },
 ];
 
-export default function InventoryScreen({ inventory, onInventoryUpdate, onNext, onPrevious }) {
+export default function InventoryScreen({ inventory, onInventoryUpdate, onNext }) {
   const [selectedItem, setSelectedItem] = useState('');
+  const [isVisible, setIsVisible] = useState(false);
   const [quantity, setQuantity] = useState('');
+  const [description, setDescription] = useState('');
+  const [inputHeight, setInputHeight] = useState(40);
 
-  const handleAddItem = () => {
-    if (selectedItem && quantity) {
+  let [fontsLoaded] = useFonts({
+    LexendGiga_400Regular,
+  });
+
+  const handleAddItem = async () => {
+    if (selectedItem && quantity && !isNaN(quantity) && parseInt(quantity, 10) > 0) {
       const item = itemsList.find(item => item.name === selectedItem);
       if (item) {
-        onInventoryUpdate([...inventory, { name: item.name, value: item.value, quantity: parseInt(quantity, 10) }]);
-        setSelectedItem('');
-        setQuantity('');
+        const newItem = {
+          name: item.name,
+          value: item.value,
+          quantity: parseInt(quantity, 10),
+          description: description ? description : '', // Asegúrate de que no sea undefined
+        };
+  
+        console.log("Nuevo ítem a agregar:", newItem); // Verifica el objeto
+  
+        // Aquí llama a la función que guarda en Firestore
+        try {
+          await onInventoryUpdate([...inventory, newItem]);
+          setSelectedItem('');
+          setQuantity('');
+          setDescription('');
+        } catch (error) {
+          console.error("Error al guardar el inventario:", error);
+        }
       }
+    } else {
+      console.log("Por favor, selecciona un ítem y una cantidad válida.");
     }
-  };
+  };  
 
   const handleRemoveItem = (index) => {
     const newInventory = inventory.filter((_, i) => i !== index);
@@ -126,40 +149,92 @@ export default function InventoryScreen({ inventory, onInventoryUpdate, onNext, 
 
   return (
     <View style={styles.container}>
-      <Picker
-        selectedValue={selectedItem}
-        onValueChange={(itemValue) => setSelectedItem(itemValue)}
-        style={styles.picker}
-      >
-        <Picker.Item label="Selecciona un ítem" value="" />
-        {itemsList.map((item, index) => (
-          <Picker.Item key={index} label={`${item.name} (${item.size})`} value={item.name} />
-        ))}
-      </Picker>
-      <TextInput
-        placeholder="Cantidad"
-        keyboardType="numeric"
-        value={quantity}
-        onChangeText={setQuantity}
-        style={styles.input}
-      />
-      <Button title="Añadir al inventario" onPress={handleAddItem} />
-      
-      <FlatList
-        data={inventory}
-        renderItem={({ item, index }) => (
-          <View style={styles.itemContainer}>
-            <Text>{item.name}</Text>
-            <Text>{item.quantity}</Text>
-            <TouchableOpacity onPress={() => handleRemoveItem(index)} style={styles.deleteButton}>
-              <Text style={styles.deleteButtonText}>Eliminar</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-        keyExtractor={(item, index) => index.toString()}
-      />
+      <Text style={styles.headerText}>INVENTARIO</Text>
+      <View style={styles.outerContainer}>
+        {/* Botón que abre el modal */}
+        <TouchableOpacity onPress={() => setIsVisible(true)} style={styles.picker}>
+          <Text style={styles.pickerText}>
+            {selectedItem ? `${selectedItem}` : 'Selecciona un ítem'}
+          </Text>
+        </TouchableOpacity>
 
-      <Button title="Siguiente" onPress={handleNext} />
+        <Modal visible={isVisible} transparent={true} animationType="slide">
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              {/* Contenedor desplazable para las opciones */}
+              <ScrollView contentContainerStyle={styles.scrollViewContent}>
+                {itemsList.map((item, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    onPress={() => {
+                      setSelectedItem(item.name);
+                      setIsVisible(false);
+                    }}
+                    style={styles.option}
+                  >
+                    <Text style={styles.optionText}>{`${item.name} (${item.size})`}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              {/* Botón para cerrar el modal sin seleccionar */}
+              <TouchableOpacity onPress={() => setIsVisible(false)} style={styles.closeButton}>
+                <Text style={styles.closeButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+        
+        <TextInput
+          placeholder="Cantidad"
+          placeholderTextColor="#8E8E8E"
+          keyboardType="numeric"
+          value={quantity}
+          onChangeText={setQuantity}
+          style={styles.input}
+        />
+
+        <TextInput
+          placeholder="Descripción"
+          placeholderTextColor="#8E8E8E"
+          value={description}
+          onChangeText={setDescription}
+          style={styles.inputDescription}
+          multiline={true} // Permite que el texto sea multilinea
+          onContentSizeChange={(e) => setInputHeight(e.nativeEvent.contentSize.height)} // Ajusta la altura según el contenido
+          maxLength={250} // Límite de caracteres
+        />
+        
+        <TouchableOpacity
+          onPress={handleAddItem}
+          style={[styles.addButton, (!selectedItem || !quantity) && styles.disabledButton]} // Añadir estilo deshabilitado
+          disabled={!selectedItem || !quantity} // Deshabilitar si no hay ítem o cantidad
+        >
+          <Text style={styles.addButtonText}>Añadir al inventario</Text>
+        </TouchableOpacity>
+        
+        <FlatList
+          data={inventory}
+          renderItem={({ item, index }) => (
+            <View style={styles.itemContainer}>
+              <View style={styles.itemInfo}>
+                <Text style={styles.itemName}>{item.name}</Text>
+                <Text style={styles.itemQuantity}>Cantidad: {item.quantity}</Text>
+                <Text style={styles.itemQuantity}>Descripción:</Text>
+                <Text style={styles.itemQuantity}>{item.description}</Text>
+              </View>
+              <TouchableOpacity onPress={() => handleRemoveItem(index)} style={styles.deleteButton}>
+                <Text style={styles.deleteButtonText}>Eliminar</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          keyExtractor={(item, index) => index.toString()}
+        />
+
+        <TouchableOpacity style={[styles.nextButton, inventory.length === 0 && styles.disabledButton]} onPress={handleNext} disabled={inventory.length === 0}>
+          <Text style={styles.nextButtonText}>Siguiente</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -167,38 +242,142 @@ export default function InventoryScreen({ inventory, onInventoryUpdate, onNext, 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
     padding: 16,
+    backgroundColor: '#F6F1FF',
+  },
+  outerContainer: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#EFE7FF',
+  },
+  headerText: {
+    fontSize: 18,
+    marginBottom: 12,
+    textAlign: 'center',
+    fontFamily: 'LexendGiga_400Regular',
   },
   picker: {
-    height: 50,
-    width: '100%',
+    backgroundColor:'#D9D9D9',
+    height: 40,
     marginBottom: 12,
+    paddingHorizontal: 20,
+    fontFamily: 'LexendGiga_400Regular',
+    justifyContent: 'center',
+  },
+  pickerText: {
+    fontFamily: 'LexendGiga_400Regular',
+    color: '#8E8E8E',
+    fontSize: 12,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 8,
+    width: '80%',
+    maxHeight: '60%', // Limitar la altura del modal
+  },
+  scrollViewContent: {
+    paddingBottom: 20, // Espacio adicional para el contenido desplazable
+  },
+  option: {
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 8,
+    marginVertical: 5,
+    alignItems: 'center',
+  },
+  optionText: {
+    fontSize: 18,
+    color: '#333',
+  },
+  closeButton: {
+    marginTop: 10,
+    backgroundColor: '#ff5252',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    fontSize: 18,
+    color: '#fff',
   },
   input: {
+    backgroundColor:'#D9D9D9',
+    fontSize: 12,
     height: 40,
-    borderColor: '#ccc',
-    borderWidth: 1,
     marginBottom: 12,
-    paddingHorizontal: 8,
+    paddingHorizontal: 20,
+    color: '#8E8E8E',
+    fontFamily: 'LexendGiga_400Regular',
+  },
+  inputDescription:{
+    backgroundColor:'#D9D9D9',
+    fontSize: 12,
+    marginBottom: 12,
+    paddingHorizontal: 20,
+    color: '#8E8E8E',
+    fontFamily: 'LexendGiga_400Regular',
+    minHeight: 40, // Altura mínima del input
+    maxHeight: 150, // Altura máxima
+  },
+  addButton: {
+    backgroundColor: '#007bff',
+    padding: 12,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  addButtonText: {
+    color: '#fff',
+    fontFamily: 'LexendGiga_400Regular',
   },
   itemContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#fff',
     marginBottom: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  itemInfo: {
+    flexDirection: 'column',
+  },
+  itemName: {
+    marginBottom: 4,
+    fontFamily: 'LexendGiga_400Regular',
+  },
+  itemQuantity: {
+    color: '#6c757d',
+    fontFamily: 'LexendGiga_400Regular',
   },
   deleteButton: {
-    backgroundColor: 'red',
-    padding: 5,
-    borderRadius: 5,
+    backgroundColor: '#dc3545',
+    paddingVertical: 6,
+    marginVertical: 20,
+    paddingHorizontal: 12,
+    justifyContent: "center",
   },
   deleteButtonText: {
-    color: 'white',
+    color: '#fff',
+    fontFamily: 'LexendGiga_400Regular',
   },
-  total: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginVertical: 10,
+  nextButton: {
+    backgroundColor: '#28a745',
+    padding: 12,
+    alignItems: 'center',
+  },
+  nextButtonText: {
+    color: '#fff',
+    fontFamily: 'LexendGiga_400Regular',
+  },
+  disabledButton:{
+    backgroundColor: '#A9A9A9',
   },
 });
