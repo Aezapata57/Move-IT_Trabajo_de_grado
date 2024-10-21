@@ -182,17 +182,41 @@ export default function RequestMoveAddress({ address = {}, onAddressUpdate, onNe
           <GooglePlacesAutocomplete
             placeholder="Ingresa la dirección de recogida"
             onPress={(data, details = null) => {
-              const newPickupLocation = {
-                address: data.description,
-                coordinates: details.geometry.location
-              };
-              setPickupLocation(newPickupLocation);
-              onAddressUpdate({
-                pickupLocation: newPickupLocation,
-                dropoffLocation,
-                date,
-                time
-              });
+              if (details) {
+                // Extraer los address_components
+                const addressComponents = details.address_components;
+
+                // Función para obtener un componente por tipo
+                const getAddressComponent = (type) => {
+                  const component = addressComponents.find(c => c.types.includes(type));
+                  return component ? component.long_name : '';
+                };
+
+                // Obtener partes de la dirección
+                const streetNumber = getAddressComponent('street_number');
+                const route = getAddressComponent('route'); // Calle
+                const sublocality = getAddressComponent('sublocality_level_1'); // Barrio o zona
+                const city = getAddressComponent('locality'); // Ciudad
+                const department = getAddressComponent('administrative_area_level_1'); // Departamento o provincia
+
+                // Formatear la dirección
+                const formattedAddress = `${route} ${streetNumber}, ${sublocality}, ${city}, ${department}`;
+
+                // Crear el objeto con la nueva ubicación de recogida
+                const newPickupLocation = {
+                  address: formattedAddress, // Utilizar la dirección detallada
+                  coordinates: details.geometry.location
+                };
+                
+                // Actualizar el estado
+                setPickupLocation(newPickupLocation);
+                onAddressUpdate({
+                  pickupLocation: newPickupLocation,
+                  dropoffLocation,
+                  date,
+                  time
+                });
+              }
             }}
             query={{
               key: 'AIzaSyDYl1UOXedon5rpWbXbSbQI1YDO81eJtLU',
@@ -208,17 +232,41 @@ export default function RequestMoveAddress({ address = {}, onAddressUpdate, onNe
           <GooglePlacesAutocomplete
             placeholder="Ingresa la dirección de entrega"
             onPress={(data, details = null) => {
-              const newDropoffLocation = {
-                address: data.description,
-                coordinates: details.geometry.location
-              };
-              setDropoffLocation(newDropoffLocation);
-              onAddressUpdate({
-                pickupLocation,
-                dropoffLocation: newDropoffLocation,
-                date,
-                time
-              });
+              if (details) {
+                // Extraer los address_components
+                const addressComponents = details.address_components;
+
+                // Función para obtener un componente por tipo
+                const getAddressComponent = (type) => {
+                  const component = addressComponents.find(c => c.types.includes(type));
+                  return component ? component.long_name : '';
+                };
+
+                // Obtener partes de la dirección
+                const streetNumber = getAddressComponent('street_number');
+                const route = getAddressComponent('route'); // Calle
+                const sublocality = getAddressComponent('sublocality_level_1'); // Barrio o zona
+                const city = getAddressComponent('locality'); // Ciudad
+                const department = getAddressComponent('administrative_area_level_1'); // Departamento o provincia
+
+                // Formatear la dirección
+                const formattedAddress = `${route} ${streetNumber}, ${sublocality}, ${city}, ${department}`;
+
+                // Crear el objeto con la nueva ubicación de entrega
+                const newDropoffLocation = {
+                  address: formattedAddress, // Utilizar la dirección detallada
+                  coordinates: details.geometry.location
+                };
+                
+                // Actualizar el estado
+                setDropoffLocation(newDropoffLocation);
+                onAddressUpdate({
+                  pickupLocation,
+                  dropoffLocation: newDropoffLocation,
+                  date,
+                  time
+                });
+              }
             }}
             query={{
               key: 'AIzaSyDYl1UOXedon5rpWbXbSbQI1YDO81eJtLU',
@@ -233,7 +281,13 @@ export default function RequestMoveAddress({ address = {}, onAddressUpdate, onNe
 
           <View style={styles.rowContainer}>
             <View style={styles.column}>
-              <Button title="Seleccionar fecha" onPress={() => setShowDatePicker(true)} />
+              <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.button}>
+                {/* Cambia el texto del botón dependiendo de si ya hay una fecha seleccionada */}
+                <Text style={styles.textButton}>
+                  {date ? `Cambiar fecha \n \n ${date.toLocaleDateString()}` : 'Seleccionar fecha'}
+                </Text>
+              </TouchableOpacity>
+              
               {showDatePicker && (
                 <DateTimePicker
                   value={date}
@@ -242,11 +296,16 @@ export default function RequestMoveAddress({ address = {}, onAddressUpdate, onNe
                   onChange={handleDateChange}
                 />
               )}
-              <Text>Fecha seleccionada: {date.toLocaleDateString()}</Text>
             </View>
 
             <View style={styles.column}>
-              <Button title="Seleccionar hora" onPress={() => setShowTimePicker(true)} />
+              <TouchableOpacity onPress={() => setShowTimePicker(true)} style={styles.button}>
+                {/* Cambia el texto del botón dependiendo de si ya hay una fecha seleccionada */}
+                <Text style={styles.textButton}>
+                  {date ? `Cambiar hora \n \n ${time.toLocaleTimeString()}` : 'Seleccionar hora'}
+                </Text>
+              </TouchableOpacity>
+              
               {showTimePicker && (
                 <DateTimePicker
                   value={time}
@@ -255,7 +314,6 @@ export default function RequestMoveAddress({ address = {}, onAddressUpdate, onNe
                   onChange={handleTimeChange}
                 />
               )}
-              <Text>Hora seleccionada: {time.toLocaleTimeString()}</Text>
             </View>
           </View>
 
@@ -288,12 +346,14 @@ export default function RequestMoveAddress({ address = {}, onAddressUpdate, onNe
           </MapView>
 
           <View style={styles.selectedTextContainer}>
-            <Text>Dirección de recogida: {pickupLocation?.address || 'No seleccionada'}</Text>
-            <Text>Dirección de entrega: {dropoffLocation?.address || 'No seleccionada'}</Text>
+            <Text style={styles.selectedTextContainerText}>Dirección de recogida: {'\n'}{pickupLocation?.address || 'No seleccionada'}</Text>
+            <Text style={styles.selectedTextContainerText}>{'\n'}Dirección de entrega: {'\n'}{dropoffLocation?.address || 'No seleccionada'}</Text>
           </View>
 
           <Button title="Anterior" onPress={onPrevious} />
-          <Button title="Siguiente" onPress={handleNext} disabled={!pickupLocation || !dropoffLocation} />
+          <TouchableOpacity style={[styles.nextButton, date.length === 0 && styles.disabledButton]} onPress={handleNext} disabled={date.length === 0}>
+            <Text style={styles.nextButtonText}>Siguiente</Text>
+          </TouchableOpacity>
         </View>
       </KeyboardAwareScrollView>
     </KeyboardAvoidingView>
@@ -339,12 +399,37 @@ const styles = StyleSheet.create({
   column: {
     flex: 1,  // Ocupa la mitad del espacio disponible
     paddingHorizontal: 8,  // Espaciado entre columnas
-  },  
+  },
+  button:{
+    backgroundColor: '#D9D9D9',
+    alignItems: 'center',
+    height: 90,
+    justifyContent: "center",
+  },
+  textButton:{
+    fontFamily: 'LexendGiga_400Regular',
+    textAlign: 'center'
+  },
   map: {
     height: 200,
     marginBottom: 16,
   },
   selectedTextContainer: {
     marginBottom: 16,
+  },
+  selectedTextContainerText:{
+    fontFamily: 'LexendGiga_400Regular',
+  },
+  nextButton: {
+    backgroundColor: '#28a745',
+    padding: 12,
+    alignItems: 'center',
+  },
+  nextButtonText: {
+    color: '#fff',
+    fontFamily: 'LexendGiga_400Regular',
+  },
+  disabledButton:{
+    backgroundColor: '#A9A9A9',
   },
 });

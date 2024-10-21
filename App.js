@@ -19,6 +19,7 @@ import CustomerHome from "./screens/CustomerHome";
 import DriverHome from "./screens/DriverHome";
 import RequestMove from "./screens/RequestMove";
 import RequestHistory from "./screens/RequestHistory";
+import AvailableRequests from "./screens/AvailableRequests";
 
 const Stack = createNativeStackNavigator();
 
@@ -79,19 +80,22 @@ const App = () => {
         {usuario ? (
           <>
             {userType === 'conductor' ? (
-              <Stack.Screen name="DriverHome" component={DriverHome} />
+              <>
+                <Stack.Screen name='DriverHome' component={DriverHome} />
+                <Stack.Screen name='AvailableRequests' component={AvailableRequests} />
+              </>
             ) : (
               <>
-                <Stack.Screen name="CustomerHome" component={CustomerHome} />
-                <Stack.Screen name="RequestMove" component={RequestMove} />
-                <Stack.Screen name="RequestHistory" component={RequestHistory} />
+                <Stack.Screen name='CustomerHome' component={CustomerHome} />
+                <Stack.Screen name='RequestMove' component={RequestMove} />
+                <Stack.Screen name='RequestHistory' component={RequestHistory} />
               </>
             )}
           </>
         ) : (
           <>
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen name='Login' component={LoginScreen} />
+            <Stack.Screen name='Register' component={RegisterScreen} />
           </>
         )}
       </Stack.Navigator>
