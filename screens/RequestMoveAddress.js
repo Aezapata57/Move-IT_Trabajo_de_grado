@@ -17,6 +17,7 @@ export default function RequestMoveAddress({ address = {}, onAddressUpdate, onNe
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [currentLocation, setCurrentLocation] = useState(null);
+  const [isVerified, setIsVerified] = useState(false);
   const [mapRegion, setMapRegion] = useState({
     latitude: 4.611, // Bogotá latitude
     longitude: -74.0817, // Bogotá longitude
@@ -99,6 +100,22 @@ export default function RequestMoveAddress({ address = {}, onAddressUpdate, onNe
     }
   }, [pickupLocation, dropoffLocation]);
   
+  const handleAddMoveDetails = async () => {
+    if (pickupLocation && dropoffLocation && date && time) {
+      setIsVerified(true);
+      const moveDetails = {
+        pickupLocation: pickupLocation,
+        dropoffLocation: dropoffLocation,
+        date: date,
+        time: time,
+      };
+  
+      console.log("Detalles del movimiento:", moveDetails); // Verifica el objeto
+  
+    } else {
+      console.log("Por favor, completa todos los campos.");
+    }
+  };  
 
   const handleNext = async () => {
     try {
@@ -324,6 +341,7 @@ export default function RequestMoveAddress({ address = {}, onAddressUpdate, onNe
             zoomEnabled={false}
             rotateEnabled={false}
             pitchEnabled={false}
+            customMapStyle={customMapStyle} // Aplica el estilo aquí
           >
             {pickupLocation && (
               <Marker
@@ -350,10 +368,24 @@ export default function RequestMoveAddress({ address = {}, onAddressUpdate, onNe
             <Text style={styles.selectedTextContainerText}>{'\n'}Dirección de entrega: {'\n'}{dropoffLocation?.address || 'No seleccionada'}</Text>
           </View>
 
-          <Button title="Anterior" onPress={onPrevious} />
-          <TouchableOpacity style={[styles.nextButton, date.length === 0 && styles.disabledButton]} onPress={handleNext} disabled={date.length === 0}>
-            <Text style={styles.nextButtonText}>Siguiente</Text>
-          </TouchableOpacity>
+          <View style={styles.verify}>
+            <TouchableOpacity style={styles.verifyButton} onPress={handleAddMoveDetails}>
+              <Text style={styles.verifyButtonText}>Verificar</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.rowContainer}> 
+            <View style={styles.columnbuttons}>
+              <TouchableOpacity style={styles.backButton} onPress={onPrevious}>
+                <Text style={styles.backButtonText}>Anterior</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.columnbuttons}>
+              <TouchableOpacity style={[styles.nextButton, !isVerified && styles.disabledButton]} onPress={handleNext} disabled={!isVerified}>
+                <Text style={styles.nextButtonText}>Siguiente</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </KeyboardAwareScrollView>
     </KeyboardAvoidingView>
@@ -396,9 +428,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',  // Para que se distribuyan con espacio entre las columnas
     marginBottom: 16,
   },
+  verify:{
+    flex: 1,  // Ocupa la mitad del espacio disponible
+    paddingHorizontal: 2,  // Espaciado entre columnas
+    paddingBottom: 5,
+  },
   column: {
     flex: 1,  // Ocupa la mitad del espacio disponible
     paddingHorizontal: 8,  // Espaciado entre columnas
+  },
+  columnbuttons: {
+    flex: 1,  // Ocupa la mitad del espacio disponible
+    paddingHorizontal: 2,  // Espaciado entre columnas
   },
   button:{
     backgroundColor: '#D9D9D9',
@@ -420,6 +461,24 @@ const styles = StyleSheet.create({
   selectedTextContainerText:{
     fontFamily: 'LexendGiga_400Regular',
   },
+  verifyButton: {
+    backgroundColor: '#0094FF',
+    padding: 12,
+    alignItems: 'center',
+  },
+  verifyButtonText: {
+    color: '#fff',
+    fontFamily: 'LexendGiga_400Regular',
+  },
+  backButton: {
+    backgroundColor: '#FF8A3D',
+    padding: 12,
+    alignItems: 'center',
+  },
+  backButtonText: {
+    color: '#fff',
+    fontFamily: 'LexendGiga_400Regular',
+  },
   nextButton: {
     backgroundColor: '#28a745',
     padding: 12,
@@ -432,4 +491,45 @@ const styles = StyleSheet.create({
   disabledButton:{
     backgroundColor: '#A9A9A9',
   },
-});
+
+})
+
+const customMapStyle = [
+  {
+    elementType: 'geometry',
+    stylers: [{ color: '#EFE7FF' }], // Color de fondo del mapa
+  },
+  {
+    elementType: 'labels.icon',
+    stylers: [{ visibility: 'off' }], // Ocultar íconos de etiquetas
+  },
+  {
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#8E8E8E' }], // Color de texto de las etiquetas
+  },
+  {
+    elementType: 'labels.text.stroke',
+    stylers: [{ color: '#F6F1FF' }], // Color de fondo de texto
+  },
+  {
+    featureType: 'administrative.locality',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#0094FF' }], // Color de texto para las localidades
+  },
+  {
+    featureType: 'water',
+    elementType: 'geometry',
+    stylers: [{ color: '#D9D9D9' }], // Color del agua
+  },
+  {
+    featureType: 'road',
+    elementType: 'geometry',
+    stylers: [{ color: '#FFFFFF' }], // Color de las carreteras
+  },
+  {
+    featureType: 'landscape',
+    elementType: 'geometry',
+    stylers: [{ color: '#F6F1FF' }], // Color del paisaje
+  },
+];
+;
