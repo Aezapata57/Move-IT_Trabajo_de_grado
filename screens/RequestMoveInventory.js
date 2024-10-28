@@ -278,7 +278,6 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: '#fff',
     padding: 20,
-    borderRadius: 8,
     width: '80%',
     maxHeight: '60%', // Limitar la altura del modal
   },
@@ -288,24 +287,24 @@ const styles = StyleSheet.create({
   option: {
     backgroundColor: '#fff',
     padding: 15,
-    borderRadius: 8,
     marginVertical: 5,
     alignItems: 'center',
   },
   optionText: {
     fontSize: 18,
     color: '#333',
+    fontFamily: 'LexendGiga_400Regular',
   },
   closeButton: {
     marginTop: 10,
     backgroundColor: '#ff5252',
     padding: 15,
-    borderRadius: 8,
     alignItems: 'center',
   },
   closeButtonText: {
-    fontSize: 18,
+    fontSize: 15,
     color: '#fff',
+    fontFamily: 'LexendGiga_400Regular',
   },
   input: {
     backgroundColor:'#D9D9D9',

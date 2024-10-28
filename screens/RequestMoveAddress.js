@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, TextInput, Button, StyleSheet, KeyboardAvoidingView, TouchableOpacity, Platform, Text } from 'react-native';
+import { View, TextInput, Modal, Button, StyleSheet, KeyboardAvoidingView, TouchableOpacity, Platform, Text } from 'react-native';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, Polyline } from 'react-native-maps';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import * as Location from 'expo-location';
 import { db, auth } from '../firebase';
@@ -18,6 +18,10 @@ export default function RequestMoveAddress({ address = {}, onAddressUpdate, onNe
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [currentLocation, setCurrentLocation] = useState(null);
   const [isVerified, setIsVerified] = useState(false);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [modalMessage, setModalMessage] = useState('');
+  const [modalButton, setModalButton] = useState(false);
+  const [routeCoords, setRouteCoords] = useState([]);
   const [mapRegion, setMapRegion] = useState({
     latitude: 4.611, // Bogotá latitude
     longitude: -74.0817, // Bogotá longitude
@@ -99,8 +103,37 @@ export default function RequestMoveAddress({ address = {}, onAddressUpdate, onNe
       setMapRegion(fitBounds);
     }
   }, [pickupLocation, dropoffLocation]);
+
+  const fetchRoute = async () => {
+    if (pickupLocation && dropoffLocation) {
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/directions/json?origin=${pickupLocation.coordinates.lat},${pickupLocation.coordinates.lng}&destination=${dropoffLocation.coordinates.lat},${dropoffLocation.coordinates.lng}&key=AIzaSyDYl1UOXedon5rpWbXbSbQI1YDO81eJtLU`
+      );
+      const data = await response.json();
+
+      if (data.routes.length) {
+        const route = data.routes[0].overview_polyline.points;
+        const decodedCoords = decodePolyline(route); // Función para decodificar la polilínea
+        setRouteCoords(decodedCoords);
+      }
+    }
+  };
+
+  const decodePolyline = (t, e = 5) => {
+    let points = [];
+    for (let lat = 0, lon = 0, index = 0; index < t.length;) {
+      let result = 1, shift = 0, b;
+      do { b = t.charCodeAt(index++) - 63 - 1, result += b << shift, shift += 5; } while (b >= 0x1f);
+      lat += (result & 1 ? ~(result >> 1) : result >> 1);
+      result = 1, shift = 0;
+      do { b = t.charCodeAt(index++) - 63 - 1, result += b << shift, shift += 5; } while (b >= 0x1f);
+      lon += (result & 1 ? ~(result >> 1) : result >> 1);
+      points.push({ latitude: lat / 1e5, longitude: lon / 1e5 });
+    }
+    return points;
+  };
   
-  const handleAddMoveDetails = async () => {
+  const handleAddMoveDetails = () => {
     if (pickupLocation && dropoffLocation && date && time) {
       setIsVerified(true);
       const moveDetails = {
@@ -109,12 +142,22 @@ export default function RequestMoveAddress({ address = {}, onAddressUpdate, onNe
         date: date,
         time: time,
       };
-  
+
       console.log("Detalles del movimiento:", moveDetails); // Verifica el objeto
-  
+
+      setModalMessage('Verificación exitosa!');
+      setModalButton(true);
+      fetchRoute();
     } else {
-      console.log("Por favor, completa todos los campos.");
+      setModalMessage('Por favor, completa todos los campos.');
+      setModalButton(false);
     }
+
+    setIsModalVisible(true); // Muestra el modal
+  };
+
+  const closeModal = () => {
+    setIsModalVisible(false);
   };  
 
   const handleNext = async () => {
@@ -337,11 +380,12 @@ export default function RequestMoveAddress({ address = {}, onAddressUpdate, onNe
           <MapView
             style={styles.map}
             region={mapRegion}
-            scrollEnabled={false}
+            scrollEnabled={true}
             zoomEnabled={false}
             rotateEnabled={false}
             pitchEnabled={false}
             customMapStyle={customMapStyle} // Aplica el estilo aquí
+            loadingEnabled
           >
             {pickupLocation && (
               <Marker
@@ -350,6 +394,7 @@ export default function RequestMoveAddress({ address = {}, onAddressUpdate, onNe
                   longitude: pickupLocation.coordinates.lng,
                 }}
                 title="Recogida"
+                pinColor="#DBC8FF"
               />
             )}
             {dropoffLocation && (
@@ -359,8 +404,10 @@ export default function RequestMoveAddress({ address = {}, onAddressUpdate, onNe
                   longitude: dropoffLocation.coordinates.lng,
                 }}
                 title="Entrega"
+                pinColor="#DBC8FF"
               />
             )}
+            {routeCoords.length > 0 && <Polyline coordinates={routeCoords} strokeWidth={4} strokeColor="#DBC8FF" />}
           </MapView>
 
           <View style={styles.selectedTextContainer}>
@@ -372,6 +419,22 @@ export default function RequestMoveAddress({ address = {}, onAddressUpdate, onNe
             <TouchableOpacity style={styles.verifyButton} onPress={handleAddMoveDetails}>
               <Text style={styles.verifyButtonText}>Verificar</Text>
             </TouchableOpacity>
+            {/* Modal de verificación */}
+            <Modal
+              visible={isModalVisible}
+              transparent={true}
+              animationType="slide"
+              onRequestClose={closeModal}
+            >
+              <View style={styles.modalContainer}>
+                <View style={styles.modalContent}>
+                  <Text style={styles.modalText}>{modalMessage}</Text>
+                  <TouchableOpacity onPress={closeModal} style={[styles.closeButtonTrue, modalButton && styles.closeButtonFalse]}>
+                    <Text style={styles.closeButtonText}>Cerrar</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Modal>
           </View>
 
           <View style={styles.rowContainer}> 
@@ -491,7 +554,41 @@ const styles = StyleSheet.create({
   disabledButton:{
     backgroundColor: '#A9A9A9',
   },
-
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    padding: 20,
+    width: '80%',
+    maxHeight: '60%',
+  },
+  modalText: {
+    marginBottom: 10,
+    fontSize: 16,
+    textAlign: 'center',
+    fontFamily: 'LexendGiga_400Regular',
+  },
+  closeButtonTrue: {
+    marginTop: 10,
+    backgroundColor: '#dc3545',
+    padding: 15,
+    alignItems: 'center',
+  },
+  closeButtonFalse: {
+    marginTop: 10,
+    backgroundColor: '#28a745',
+    padding: 15,
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    fontSize: 15,
+    color: '#fff',
+    fontFamily: 'LexendGiga_400Regular',
+  },
 })
 
 const customMapStyle = [
